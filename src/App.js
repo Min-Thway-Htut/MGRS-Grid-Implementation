@@ -1,11 +1,14 @@
 import logo from './logo.svg';
 import './App.css';
+import Map from './components/map';
+import Navbar from './components/navbar';
 
 function App() {
   return (
-    <div>
-      <h1>Map Testing</h1>
-    </div>
+   <div>
+    <Navbar />
+    <Map />
+   </div>
   );
 }
 
