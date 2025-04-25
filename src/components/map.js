@@ -3,7 +3,7 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './map.css';
 
-export default function Map(){
+export default function Map() {
     const mapContainer = useRef(null);
     const map = useRef(null);
     const lng = 96.137044;
@@ -21,11 +21,60 @@ export default function Map(){
             zoom: zoom
         });
 
+        map.current.on('load', () => {
+            // Create a grid layer
+            const gridLayer = {
+                id: 'grid',
+                type: 'line',
+                source: {
+                    type: 'geojson',
+                    data: {
+                        type: 'FeatureCollection',
+                        features: []
+                    }
+                },
+                paint: {
+                    'line-color': '#000',
+                    'line-width': 1
+                }
+            };
+
+            // Add vertical grid lines
+            for (let i = -180; i <= 180; i += 10) {
+                gridLayer.source.data.features.push({
+                    type: 'Feature',
+                    geometry: {
+                        type: 'LineString',
+                        coordinates: [
+                            [i, -90],
+                            [i, 90]
+                        ]
+                    }
+                });
+            }
+
+            // Add horizontal grid lines
+            for (let i = -90; i <= 90; i += 10) {
+                gridLayer.source.data.features.push({
+                    type: 'Feature',
+                    geometry: {
+                        type: 'LineString',
+                        coordinates: [
+                            [-180, i],
+                            [180, i]
+                        ]
+                    }
+                });
+            }
+
+            map.current.addLayer(gridLayer);
+        });
+
     }, [API_KEY, lng, lat, zoom]);
 
     return (
         <div className="map-wrap">
             <div ref={mapContainer} className="map"/>
         </div>
-    )
+    );
 }
