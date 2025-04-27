@@ -17,7 +17,7 @@ const MapWithMGRSOverlay = () => {
       container: mapContainer.current,
       style: `https://api.maptiler.com/maps/hybrid/style.json?key=${API_KEY}`,
       center: [96.137044, 20.4315],
-      zoom: 5,
+      zoom: 8,
     });
 
     mapRef.current = map;

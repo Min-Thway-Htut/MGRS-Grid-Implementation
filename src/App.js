@@ -9,6 +9,8 @@ function App() {
   return (
    <div>
     <Navbar />
+    <Map />
+    <Navbar />
     <MapWithMGRSOverlay />
    </div>
   );
