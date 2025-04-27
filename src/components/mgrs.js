@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import maplibregl from 'maplibre-gl';
-import { forward as toMGRS } from 'mgrs'; // Only need `forward`
+import { forward as toMGRS, inverse as fromMGRS } from 'mgrs'; // Also need inverse conversion
 
 const MapWithMGRSOverlay = () => {
   const mapContainer = useRef(null);
@@ -29,12 +29,13 @@ const MapWithMGRSOverlay = () => {
       });
 
       map.addLayer({
-        id: 'mgrs-points',
-        type: 'circle',
+        id: 'mgrs-squares',
+        type: 'fill',
         source: 'mgrs-grid',
         paint: {
-          'circle-radius': 3,
-          'circle-color': '#FF0000',
+          'fill-color': '#121212',
+          'fill-opacity': 0.2,
+          'fill-outline-color': '#ffffff',
         },
       });
 
@@ -45,14 +46,13 @@ const MapWithMGRSOverlay = () => {
         layout: {
           'text-field': ['get', 'mgrs'],
           'text-size': 10,
-          'text-offset': [0, 1.5],
+          'text-offset': [0, 0],
         },
         paint: {
           'text-color': '#ffffff',
         },
       });
 
-      // Update points whenever map moves or zooms
       map.on('moveend', () => {
         const source = map.getSource('mgrs-grid');
         if (source) {
@@ -80,11 +80,24 @@ const MapWithMGRSOverlay = () => {
       for (let lng = Math.floor(minLng); lng <= Math.ceil(maxLng); lng += step) {
         try {
           const mgrsCode = toMGRS([lng, lat]);
+          const [lngCenter, latCenter] = fromMGRS(mgrsCode);
+
+          const halfStep = step / 2;
+          const square = [
+            [
+              [lngCenter - halfStep, latCenter - halfStep],
+              [lngCenter + halfStep, latCenter - halfStep],
+              [lngCenter + halfStep, latCenter + halfStep],
+              [lngCenter - halfStep, latCenter + halfStep],
+              [lngCenter - halfStep, latCenter - halfStep], // Close the polygon
+            ],
+          ];
+
           features.push({
             type: 'Feature',
             geometry: {
-              type: 'Point',
-              coordinates: [lng, lat],
+              type: 'Polygon',
+              coordinates: square,
             },
             properties: {
               mgrs: mgrsCode,
@@ -103,7 +116,6 @@ const MapWithMGRSOverlay = () => {
   };
 
   const calculateStep = (zoom) => {
-    // Smaller step for higher zoom = denser points
     if (zoom > 10) return 0.1;
     if (zoom > 7) return 0.5;
     if (zoom > 5) return 1;
@@ -114,4 +126,3 @@ const MapWithMGRSOverlay = () => {
 };
 
 export default MapWithMGRSOverlay;
-
