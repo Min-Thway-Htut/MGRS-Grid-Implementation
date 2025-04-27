@@ -1,42 +1,31 @@
 import React, { useEffect, useRef } from 'react';
 import maplibregl from 'maplibre-gl';
-import { forward as toMGRS, toPoint } from 'mgrs'; // Correct named imports
+import { forward as toMGRS } from 'mgrs'; // Only need `forward`
 
 const MapWithMGRSOverlay = () => {
   const mapContainer = useRef(null);
+  const mapRef = useRef(null);
   const API_KEY = process.env.REACT_APP_MAPTILER_API_KEY;
 
   useEffect(() => {
-    // Initialize the MapLibre map
+    if (!API_KEY) {
+      console.error('Missing MapTiler API Key!');
+      return;
+    }
+
     const map = new maplibregl.Map({
       container: mapContainer.current,
       style: `https://api.maptiler.com/maps/hybrid/style.json?key=${API_KEY}`,
-      center: [0, 0],
-      zoom: 2,
+      center: [96.137044, 20.4315],
+      zoom: 5,
     });
 
-    // Add MapTier raster tile layer
+    mapRef.current = map;
+
     map.on('load', () => {
-      map.addSource('maptier', {
-        type: 'raster',
-        tiles: ['https://tiles.maptier.com/{z}/{x}/{y}.png'], // Replace with your actual MapTier tile URL
-        tileSize: 256,
-      });
-
-      map.addLayer({
-        id: 'maptier-layer',
-        type: 'raster',
-        source: 'maptier',
-        paint: {
-          'raster-opacity': 1,
-        },
-      });
-
-      // Add MGRS overlay
-      const gridGeoJSON = generateMGRSGrid(map);
       map.addSource('mgrs-grid', {
         type: 'geojson',
-        data: gridGeoJSON,
+        data: generateMGRSGrid(map),
       });
 
       map.addLayer({
@@ -56,19 +45,27 @@ const MapWithMGRSOverlay = () => {
         layout: {
           'text-field': ['get', 'mgrs'],
           'text-size': 10,
+          'text-offset': [0, 1.5],
         },
         paint: {
-          'text-color': '#fff',
+          'text-color': '#ffffff',
         },
+      });
+
+      // Update points whenever map moves or zooms
+      map.on('moveend', () => {
+        const source = map.getSource('mgrs-grid');
+        if (source) {
+          source.setData(generateMGRSGrid(map));
+        }
       });
     });
 
     return () => {
       map.remove();
     };
-  }, []);
+  }, [API_KEY]);
 
-  // Generate basic MGRS point grid (sampled, not full grid lines)
   const generateMGRSGrid = (map) => {
     const bounds = map.getBounds();
     const minLat = bounds.getSouth();
@@ -77,26 +74,24 @@ const MapWithMGRSOverlay = () => {
     const maxLng = bounds.getEast();
 
     const features = [];
-
-    const step = 5; // Step in degrees — increase for performance, decrease for density
+    const step = calculateStep(map.getZoom());
 
     for (let lat = Math.floor(minLat); lat <= Math.ceil(maxLat); lat += step) {
       for (let lng = Math.floor(minLng); lng <= Math.ceil(maxLng); lng += step) {
         try {
-          const mgrs = toMGRS([lng, lat]);
-          const [lon, latBack] = toPoint(mgrs);
+          const mgrsCode = toMGRS([lng, lat]);
           features.push({
             type: 'Feature',
             geometry: {
               type: 'Point',
-              coordinates: [lon, latBack],
+              coordinates: [lng, lat],
             },
             properties: {
-              mgrs,
+              mgrs: mgrsCode,
             },
           });
         } catch (err) {
-          console.warn('MGRS conversion error:', err);
+          console.warn('MGRS conversion error at', lng, lat, err);
         }
       }
     }
@@ -107,7 +102,16 @@ const MapWithMGRSOverlay = () => {
     };
   };
 
-  return <div ref={mapContainer} style={{ width: '100%', height: '500px' }} />;
+  const calculateStep = (zoom) => {
+    // Smaller step for higher zoom = denser points
+    if (zoom > 10) return 0.1;
+    if (zoom > 7) return 0.5;
+    if (zoom > 5) return 1;
+    return 2;
+  };
+
+  return <div ref={mapContainer} style={{ width: '100%', height: '600px' }} />;
 };
 
 export default MapWithMGRSOverlay;
+
