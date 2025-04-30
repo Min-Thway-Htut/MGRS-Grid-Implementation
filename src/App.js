@@ -10,8 +10,6 @@ function App() {
    <div>
     <Navbar />
     <Map />
-    <Navbar />
-    <MapWithMGRSOverlay />
    </div>
   );
 }
